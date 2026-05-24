@@ -1,0 +1,267 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  background: #1e1e1e;
+  color: #cccccc;
+}
+
+.toolbar {
+  height: 40px;
+  background: #2d2d30;
+  border-bottom: 1px solid #3c3c3c;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 10px;
+}
+
+.toolbar button {
+  background: #0e639c;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.toolbar button:hover {
+  background: #1177bb;
+}
+
+.main-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.left-panel {
+  width: 280px;
+  background: #252526;
+  border-right: 1px solid #3c3c3c;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.center-viewport {
+  flex: 1;
+  background: #1e1e1e;
+  overflow: hidden;
+}
+
+.right-panel {
+  width: 320px;
+  background: #252526;
+  border-left: 1px solid #3c3c3c;
+  overflow: hidden;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.panel-header {
+  height: 35px;
+  background: #2d2d30;
+  border-bottom: 1px solid #3c3c3c;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-weight: 600;
+  font-size: 13px;
+  justify-content: space-between;
+}
+
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.scene-hierarchy {
+  flex: 1;
+  border-bottom: 1px solid #3c3c3c;
+}
+
+.asset-browser {
+  flex: 1;
+}
+
+.entity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.entity-item {
+  padding: 8px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+
+.entity-item:hover {
+  background: #2a2d2e;
+}
+
+.entity-item.selected {
+  background: #094771;
+}
+
+.entity-icon {
+  font-size: 14px;
+}
+
+.entity-name {
+  flex: 1;
+  font-size: 13px;
+}
+
+.delete-btn {
+  background: transparent;
+  border: none;
+  color: #cccccc;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 5px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.entity-item:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  color: #f48771;
+}
+
+.empty-state {
+  text-align: center;
+  color: #858585;
+  padding: 20px;
+  font-size: 13px;
+}
+
+.property-section {
+  margin-bottom: 20px;
+}
+
+.property-section label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 5px;
+  color: #cccccc;
+}
+
+.property-section h3 {
+  font-size: 14px;
+  margin-bottom: 10px;
+  color: #cccccc;
+  border-bottom: 1px solid #3c3c3c;
+  padding-bottom: 5px;
+}
+
+.property-section input[type="text"],
+.property-section input[type="number"] {
+  width: 100%;
+  background: #3c3c3c;
+  border: 1px solid #555555;
+  color: #cccccc;
+  padding: 6px 8px;
+  font-size: 13px;
+  border-radius: 3px;
+}
+
+.vector-input {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.vector-input input {
+  text-align: center;
+}
+
+.asset-category {
+  margin-bottom: 15px;
+}
+
+.asset-category h4 {
+  font-size: 12px;
+  color: #cccccc;
+  margin-bottom: 8px;
+  padding: 5px;
+  background: #2d2d30;
+  border-radius: 3px;
+}
+
+.asset-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.asset-item {
+  padding: 6px 8px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.asset-item:hover {
+  background: #2a2d2e;
+}
+
+.asset-icon {
+  font-size: 14px;
+}
+
+.import-btn {
+  background: #0e639c;
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.import-btn:hover {
+  background: #1177bb;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4e4e4e;
+}
