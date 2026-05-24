@@ -1,11 +1,14 @@
 #include "GameLoader.h"
 #include "../utils/Logger.h"
 #include "../utils/FileSystem.h"
-#include <fstream>
-#include <sstream>
+#include <regex>
 
 GameLoader::GameLoader()
-    : m_Loaded(false) {
+    : m_GameName("Untitled")
+    , m_EntityCount(0)
+    , m_AssetCount(0)
+    , m_ScriptCount(0)
+    , m_Loaded(false) {
 }
 
 GameLoader::~GameLoader() {
@@ -14,9 +17,8 @@ GameLoader::~GameLoader() {
 bool GameLoader::LoadGameFile(const std::string& filepath) {
     Logger::Info("Loading game file: " + filepath);
     
-    // Read entire file
-    std::vector<uint8_t> fileData = FileSystem::ReadBinaryFile(filepath);
-    if (fileData.empty()) {
+    std::string content = FileSystem::ReadTextFile(filepath);
+    if (content.empty()) {
         Logger::Error("Failed to read game file");
         return false;
     }
@@ -27,72 +29,64 @@ bool GameLoader::LoadGameFile(const std::string& filepath) {
         return false;
     }
     
-    // Extract sections
-    if (!ExtractManifest(fileData)) {
-        Logger::Error("Failed to extract manifest");
+    if (!ParsePackage(content)) {
+        Logger::Error("Failed to parse game package");
         return false;
     }
-    
-    if (!ExtractAssets(fileData)) {
-        Logger::Error("Failed to extract assets");
-        return false;
-    }
-    
-    if (!ExtractScripts(fileData)) {
-        Logger::Error("Failed to extract scripts");
-        return false;
-    }
-    
+
     m_Loaded = true;
     Logger::Info("Game file loaded successfully");
     return true;
 }
 
 bool GameLoader::ValidateFile(const std::string& filepath) {
-    // Check file extension
-    if (filepath.substr(filepath.find_last_of(".") + 1) != "game") {
+    const std::size_t extensionPos = filepath.find_last_of('.');
+    if (extensionPos == std::string::npos || filepath.substr(extensionPos + 1) != "game") {
         return false;
     }
     
-    // In a real implementation, check magic number and version
     return true;
 }
 
-bool GameLoader::ExtractManifest(const std::vector<uint8_t>& fileData) {
-    try {
-        // For now, assume the file is just JSON (simplified)
-        // In production, this would parse the binary format
-        std::string jsonStr(fileData.begin(), fileData.end());
-        m_Manifest = json::parse(jsonStr);
-        return true;
-    } catch (const std::exception& e) {
-        Logger::Error("Manifest parsing error: " + std::string(e.what()));
+bool GameLoader::ParsePackage(const std::string& content) {
+    if (content.find("\"magic\"") == std::string::npos ||
+        content.find("\"GAME\"") == std::string::npos ||
+        content.find("\"manifest\"") == std::string::npos) {
+        Logger::Error("Package is missing required GAME header or manifest");
         return false;
     }
-}
 
-bool GameLoader::ExtractAssets(const std::vector<uint8_t>& fileData) {
-    // In production, extract from binary bundle
-    // For now, placeholder
-    return true;
-}
-
-bool GameLoader::ExtractScripts(const std::vector<uint8_t>& fileData) {
-    // In production, extract from binary bundle
-    // For now, placeholder
-    return true;
-}
-
-std::vector<uint8_t> GameLoader::GetAsset(const std::string& assetPath) {
-    if (m_Assets.find(assetPath) != m_Assets.end()) {
-        return m_Assets[assetPath];
+    std::smatch match;
+    const std::regex namePattern("\"name\"\\s*:\\s*\"([^\"]+)\"");
+    if (std::regex_search(content, match, namePattern) && match.size() > 1) {
+        m_GameName = match[1].str();
     }
-    return std::vector<uint8_t>();
-}
 
-std::string GameLoader::GetScript(const std::string& scriptPath) {
-    if (m_Scripts.find(scriptPath) != m_Scripts.end()) {
-        return m_Scripts[scriptPath];
+    const std::regex entityPattern("\"id\"\\s*:\\s*\"");
+    m_EntityCount = std::distance(
+        std::sregex_iterator(content.begin(), content.end(), entityPattern),
+        std::sregex_iterator()
+    );
+
+    const std::regex assetHashPattern("\"assetHashes\"\\s*:\\s*\\{([^}]*)\\}");
+    if (std::regex_search(content, match, assetHashPattern) && match.size() > 1) {
+        const std::string assetBlock = match[1].str();
+        const std::regex keyPattern("\"[^\"]+\"\\s*:");
+        m_AssetCount = std::distance(
+            std::sregex_iterator(assetBlock.begin(), assetBlock.end(), keyPattern),
+            std::sregex_iterator()
+        );
     }
-    return "";
+
+    const std::regex scriptsPattern("\"scripts\"\\s*:\\s*\\{([^}]*)\\}");
+    if (std::regex_search(content, match, scriptsPattern) && match.size() > 1) {
+        const std::string scriptBlock = match[1].str();
+        const std::regex keyPattern("\"[^\"]+\"\\s*:");
+        m_ScriptCount = std::distance(
+            std::sregex_iterator(scriptBlock.begin(), scriptBlock.end(), keyPattern),
+            std::sregex_iterator()
+        );
+    }
+
+    return true;
 }

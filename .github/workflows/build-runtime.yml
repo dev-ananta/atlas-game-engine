@@ -1,0 +1,37 @@
+name: Build Runtime
+
+on:
+  push:
+    paths:
+      - "runtime/**"
+      - ".github/workflows/build-runtime.yml"
+  pull_request:
+    paths:
+      - "runtime/**"
+      - ".github/workflows/build-runtime.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S runtime -B runtime/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build runtime/build --config Release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-${{ runner.os }}
+          path: |
+            runtime/build/bin/**
+            runtime/build/Release/**

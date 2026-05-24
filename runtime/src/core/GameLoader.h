@@ -1,11 +1,7 @@
 #pragma once
 
 #include <string>
-#include <vector>
-#include <map>
-#include "../utils/json.hpp"
-
-using json = nlohmann::json;
+#include <cstddef>
 
 class GameLoader {
 public:
@@ -13,20 +9,18 @@ public:
     ~GameLoader();
     
     bool LoadGameFile(const std::string& filepath);
-    json GetManifest() const { return m_Manifest; }
-    
-    // Asset retrieval
-    std::vector<uint8_t> GetAsset(const std::string& assetPath);
-    std::string GetScript(const std::string& scriptPath);
+    std::string GetGameName() const { return m_GameName; }
+    std::size_t GetEntityCount() const { return m_EntityCount; }
+    std::size_t GetAssetCount() const { return m_AssetCount; }
+    std::size_t GetScriptCount() const { return m_ScriptCount; }
     
 private:
     bool ValidateFile(const std::string& filepath);
-    bool ExtractManifest(const std::vector<uint8_t>& fileData);
-    bool ExtractAssets(const std::vector<uint8_t>& fileData);
-    bool ExtractScripts(const std::vector<uint8_t>& fileData);
+    bool ParsePackage(const std::string& content);
     
-    json m_Manifest;
-    std::map<std::string, std::vector<uint8_t>> m_Assets;
-    std::map<std::string, std::string> m_Scripts;
+    std::string m_GameName;
+    std::size_t m_EntityCount;
+    std::size_t m_AssetCount;
+    std::size_t m_ScriptCount;
     bool m_Loaded;
 };

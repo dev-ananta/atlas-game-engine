@@ -1,0 +1,45 @@
+name: Build Game Package
+
+on:
+  push:
+    paths:
+      - "build-tools/**"
+      - "examples/**"
+      - ".github/workflows/build-game-package.yml"
+  pull_request:
+    paths:
+      - "build-tools/**"
+      - "examples/**"
+      - ".github/workflows/build-game-package.yml"
+  workflow_dispatch:
+
+jobs:
+  package-example:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: build-tools/package-lock.json
+
+      - name: Install build tools
+        working-directory: build-tools
+        run: npm install
+
+      - name: Validate hello-world manifest
+        run: node build-tools/src/validate-manifest.js examples/hello-world/scene.manifest
+
+      - name: Compile scripts
+        run: node build-tools/src/compile-lua.js examples/hello-world/scripts examples/hello-world/build/scripts.bundle
+
+      - name: Package game
+        run: node build-tools/src/package-game.js examples/hello-world/scene.manifest examples/hello-world/build hello-world.game
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hello-world-game
+          path: examples/hello-world/build/hello-world.game

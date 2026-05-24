@@ -10,10 +10,16 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# Source files
-file(GLOB_RECURSE SOURCES
-    "src/*.cpp"
-    "src/*.h"
+# Source files. The checked-in runtime is intentionally dependency-free so CI
+# can validate packaged games without requiring vendored graphics libraries.
+set(SOURCES
+    src/main.cpp
+    src/core/Application.cpp
+    src/core/Application.h
+    src/core/GameLoader.cpp
+    src/core/GameLoader.h
+    src/utils/FileSystem.h
+    src/utils/Logger.h
 )
 
 # Create executable
@@ -21,14 +27,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/glfw/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/glad/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/lua/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/bullet/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/assimp/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/libs/stb
 )
 
 # Platform-specific settings
@@ -52,55 +51,6 @@ elseif(UNIX)
     set_target_properties(${PROJECT_NAME} PROPERTIES
         OUTPUT_NAME "runtime-linux"
     )
-endif()
-
-# GLFW
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-add_subdirectory(libs/glfw)
-
-# Lua
-add_subdirectory(libs/lua)
-
-# Bullet Physics
-set(BUILD_BULLET2_DEMOS OFF CACHE BOOL "" FORCE)
-set(BUILD_UNIT_TESTS OFF CACHE BOOL "" FORCE)
-add_subdirectory(libs/bullet)
-
-# Assimp
-set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
-add_subdirectory(libs/assimp)
-
-# GLAD (compile as part of project)
-add_library(glad STATIC
-    libs/glad/src/glad.c
-)
-target_include_directories(glad PUBLIC
-    libs/glad/include
-)
-
-# Link libraries
-target_link_libraries(${PROJECT_NAME}
-    glfw
-    glad
-    lua_static
-    BulletDynamics
-    BulletCollision
-    LinearMath
-    assimp
-)
-
-# OpenGL
-find_package(OpenGL REQUIRED)
-target_link_libraries(${PROJECT_NAME} OpenGL::GL)
-
-# Platform-specific libraries
-if(WIN32)
-    target_link_libraries(${PROJECT_NAME} winmm)
-elseif(UNIX AND NOT APPLE)
-    target_link_libraries(${PROJECT_NAME} dl pthread)
 endif()
 
 # Copy shaders and assets to output

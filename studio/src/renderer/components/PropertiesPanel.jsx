@@ -19,8 +19,12 @@ function PropertiesPanel({ entity, onUpdate }) {
   }
 
   const handleTransformChange = (axis, value, type) => {
-    const newTransform = { ...localEntity.transform };
-    newTransform[type][axis] = parseFloat(value);
+    const parsedValue = Number.parseFloat(value);
+    const newTransform = {
+      ...localEntity.transform,
+      [type]: [...localEntity.transform[type]]
+    };
+    newTransform[type][axis] = Number.isFinite(parsedValue) ? parsedValue : 0;
     const updated = { ...localEntity, transform: newTransform };
     setLocalEntity(updated);
     onUpdate(entity.id, updated);

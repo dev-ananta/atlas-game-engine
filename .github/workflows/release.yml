@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build example package
+        run: |
+          npm install --prefix build-tools
+          node build-tools/src/validate-manifest.js examples/hello-world/scene.manifest
+          node build-tools/src/compile-lua.js examples/hello-world/scripts examples/hello-world/build/scripts.bundle
+          node build-tools/src/package-game.js examples/hello-world/scene.manifest examples/hello-world/build hello-world.game
+
+      - name: Build runtime
+        run: |
+          cmake -S runtime -B runtime/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build runtime/build --config Release
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            examples/hello-world/build/hello-world.game
+            runtime/build/bin/*

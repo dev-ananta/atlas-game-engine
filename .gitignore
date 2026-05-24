@@ -17,6 +17,8 @@ out/
 # Studio specific
 studio/dist/
 studio/build/
+studio/public/renderer.js
+studio/public/renderer.js.LICENSE.txt
 
 # Runtime specific
 runtime/build/
@@ -65,7 +67,6 @@ coverage/
 .env.*.local
 
 # Package manager
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
 

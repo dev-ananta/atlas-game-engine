@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const simpleGit = require('simple-git');
@@ -15,7 +15,6 @@ function createWindow() {
       contextIsolation: true,
     },
     title: 'GameEngine Studio',
-    icon: path.join(__dirname, '../../public/icons/icon.png')
   });
 
   mainWindow.loadFile(path.join(__dirname, '../../public/index.html'));
@@ -63,6 +62,14 @@ ipcMain.handle('load-project', async (event, projectPath) => {
   } catch (error) {
     return { success: false, error: error.message };
   }
+});
+
+ipcMain.handle('open-dialog', async (event, options) => {
+  return dialog.showOpenDialog(mainWindow, options);
+});
+
+ipcMain.handle('save-dialog', async (event, options) => {
+  return dialog.showSaveDialog(mainWindow, options);
 });
 
 ipcMain.handle('import-asset', async (event, sourcePath, projectPath) => {
