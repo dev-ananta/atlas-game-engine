@@ -1,0 +1,86 @@
+{
+  "version": "1.0.0",
+  "scene": {
+    "metadata": {
+      "name": "Hello World",
+      "created": "2026-01-25T00:00:00.000Z",
+      "modified": "2026-01-25T00:00:00.000Z",
+      "description": "A simple hello world example with a rotating cube"
+    },
+    "entities": [
+      {
+        "id": "ground-plane",
+        "name": "Ground",
+        "transform": {
+          "position": [0, 0, 0],
+          "rotation": [0, 0, 0],
+          "scale": [20, 0.1, 20]
+        },
+        "components": {
+          "mesh": "primitive:cube",
+          "material": null,
+          "scripts": [],
+          "physics": {
+            "type": "static",
+            "collider": "box"
+          }
+        },
+        "children": []
+      },
+      {
+        "id": "rotating-cube",
+        "name": "RotatingCube",
+        "transform": {
+          "position": [0, 2, 0],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1]
+        },
+        "components": {
+          "mesh": "primitive:cube",
+          "material": null,
+          "scripts": ["scripts/rotate.lua"],
+          "physics": null
+        },
+        "children": []
+      },
+      {
+        "id": "camera",
+        "name": "MainCamera",
+        "transform": {
+          "position": [5, 5, 5],
+          "rotation": [-30, 45, 0],
+          "scale": [1, 1, 1]
+        },
+        "components": {
+          "mesh": null,
+          "material": null,
+          "scripts": [],
+          "physics": null
+        },
+        "children": []
+      },
+      {
+        "id": "light",
+        "name": "DirectionalLight",
+        "transform": {
+          "position": [0, 10, 0],
+          "rotation": [-45, 0, 0],
+          "scale": [1, 1, 1]
+        },
+        "components": {
+          "mesh": null,
+          "material": null,
+          "scripts": [],
+          "physics": null
+        },
+        "children": []
+      }
+    ],
+    "assetRegistry": {
+      "models": [],
+      "textures": [],
+      "scripts": ["scripts/rotate.lua"],
+      "audio": []
+    }
+  }
+}
