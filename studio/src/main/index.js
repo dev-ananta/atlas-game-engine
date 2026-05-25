@@ -13,6 +13,16 @@ const QUALITY_PROFILES = {
   Potato: { minCpuCores: 2, minMemoryGB: 2 },
 };
 
+
+
+function sanitizeProjectName(projectName) {
+  const reserved = new Set(['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9']);
+  const candidate = (projectName || 'AtlasGame').trim().replace(/[<>:"/\|?*]/g, '_').replace(/\.+$/g, '').trim();
+  if (!candidate || reserved.has(candidate.toUpperCase())) {
+    return 'AtlasGame';
+  }
+  return candidate;
+}
 function createDefaultManifest(projectName) {
   const now = new Date().toISOString();
   return {
@@ -20,7 +30,7 @@ function createDefaultManifest(projectName) {
     metadata: {
       title: projectName,
       creator: 'Unknown Creator',
-      releaseDate: now,
+      releaseDate: null,
       genre: 'Unknown',
       description: '',
       coverArt: null,
@@ -90,7 +100,7 @@ app.on('activate', () => {
 
 ipcMain.handle('create-project', async (event, targetDirectory, projectName) => {
   try {
-    const safeName = (projectName || 'AtlasGame').trim().replace(/[<>:"/\\|?*]/g, '_');
+    const safeName = sanitizeProjectName(projectName);
     const projectPath = path.join(targetDirectory, safeName);
 
     await fs.promises.mkdir(path.join(projectPath, 'assets', 'models'), { recursive: true });

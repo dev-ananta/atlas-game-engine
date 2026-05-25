@@ -100,8 +100,18 @@ function validateManifest(manifestPath) {
       errors.push(`Entity ${entity.id} missing name`);
     }
 
-    if (!entity.transform || !isVec3(entity.transform.position) || !isVec3(entity.transform.rotation) || !isVec3(entity.transform.scale)) {
-      errors.push(`Entity ${entity.id} has invalid transform (position/rotation/scale must be vec3 arrays)`);
+    if (!entity.transform) {
+      errors.push(`Entity ${entity.id} missing transform`);
+    } else {
+      if (!isVec3(entity.transform.position)) {
+        errors.push(`Entity ${entity.id} has invalid transform.position (must be vec3 array)`);
+      }
+      if (!isVec3(entity.transform.rotation)) {
+        errors.push(`Entity ${entity.id} has invalid transform.rotation (must be vec3 array)`);
+      }
+      if (!isVec3(entity.transform.scale)) {
+        errors.push(`Entity ${entity.id} has invalid transform.scale (must be vec3 array)`);
+      }
     }
   }
 

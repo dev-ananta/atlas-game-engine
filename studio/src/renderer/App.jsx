@@ -32,7 +32,7 @@ function App() {
     metadata: {
       title: 'Untitled Atlas Game',
       creator: 'Unknown Creator',
-      releaseDate: new Date().toISOString(),
+      releaseDate: null,
       genre: 'Unknown',
       description: '',
       coverArt: null,

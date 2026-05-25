@@ -18,12 +18,14 @@
 
 namespace {
 std::string Base64Decode(const std::string& input) {
-    static const std::string chars =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::vector<int> lookup(256, -1);
-    for (std::size_t i = 0; i < chars.size(); ++i) {
-        lookup[static_cast<unsigned char>(chars[i])] = static_cast<int>(i);
-    }
+    static const std::vector<int> lookup = []() {
+        const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        std::vector<int> table(256, -1);
+        for (std::size_t i = 0; i < chars.size(); ++i) {
+            table[static_cast<unsigned char>(chars[i])] = static_cast<int>(i);
+        }
+        return table;
+    }();
 
     std::string output;
     int val = 0;
@@ -147,7 +149,7 @@ std::string GameLoader::SelectQualityTier(const std::string& content, const Hard
         int minMem = rule.defaultMemory;
 
         const std::string pattern =
-            "\\\"" + std::string(rule.name) + "\\\"\\s*:\\s*\\{[^}]*\\\"minCpuCores\\\"\\s*:\\s*(\\\\d+)[^}]*\\\"minMemoryGB\\\"\\s*:\\s*(\\\\d+)";
+            "\\\"" + std::string(rule.name) + "\\\"\\s*:\\s*\\{[^}]*\\\"minCpuCores\\\"\\s*:\\s*(\\d+)[^}]*\\\"minMemoryGB\\\"\\s*:\\s*(\\d+)";
         std::regex regexPattern(pattern);
         std::smatch match;
         if (std::regex_search(content, match, regexPattern) && match.size() >= 3) {

@@ -31,7 +31,7 @@ function parseArgs(argv) {
 function encodePayload(distribution, payloadJson, options) {
   if (distribution === 'open' && options.symmetricKey) {
     const salt = crypto.randomBytes(16);
-    const key = crypto.scryptSync(options.symmetricKey, salt, 32);
+    const key = crypto.scryptSync(options.symmetricKey, salt, 32, { N: 16384, r: 8, p: 1 });
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     const encrypted = Buffer.concat([cipher.update(payloadJson, 'utf8'), cipher.final()]);
