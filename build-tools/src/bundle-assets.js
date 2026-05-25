@@ -36,6 +36,9 @@ function bundleAssets(assetsDir, outputPath) {
   } else {
     function walkDir(dir, baseDir) {
       for (const file of fs.readdirSync(dir)) {
+        if (file.startsWith('.')) {
+          continue;
+        }
         const filePath = path.join(dir, file);
         const stat = fs.statSync(filePath);
 
