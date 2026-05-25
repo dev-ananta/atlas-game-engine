@@ -5,6 +5,62 @@ const simpleGit = require('simple-git');
 
 let mainWindow;
 
+const QUALITY_PROFILES = {
+  Ultra: { minCpuCores: 12, minMemoryGB: 16 },
+  High: { minCpuCores: 8, minMemoryGB: 12 },
+  Medium: { minCpuCores: 6, minMemoryGB: 8 },
+  Low: { minCpuCores: 4, minMemoryGB: 4 },
+  Potato: { minCpuCores: 2, minMemoryGB: 2 },
+};
+
+
+
+function sanitizeProjectName(projectName) {
+  const reserved = new Set(['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9']);
+  const candidate = (projectName || 'AtlasGame').trim().replace(/[<>:"/\|?*]/g, '_').replace(/\.+$/g, '').trim();
+  if (!candidate || reserved.has(candidate.toUpperCase())) {
+    return 'AtlasGame';
+  }
+  return candidate;
+}
+function createDefaultManifest(projectName) {
+  const now = new Date().toISOString();
+  return {
+    formatVersion: '1.1.0',
+    metadata: {
+      title: projectName,
+      creator: 'Unknown Creator',
+      releaseDate: null,
+      genre: 'Unknown',
+      description: '',
+      coverArt: null,
+      version: '0.1.0',
+      assetQualityTiers: ['Ultra', 'High', 'Medium', 'Low', 'Potato'],
+      recommendedHardware: QUALITY_PROFILES,
+      distribution: 'open',
+    },
+    runtime: {
+      entryScene: 'scene.main',
+    },
+    qualityProfiles: QUALITY_PROFILES,
+    scene: {
+      metadata: {
+        name: 'Main Scene',
+        created: now,
+        modified: now,
+        description: '',
+      },
+      entities: [],
+      assetRegistry: {
+        models: [],
+        textures: [],
+        scripts: [],
+        audio: [],
+      },
+    },
+  };
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1600,
@@ -14,12 +70,11 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
     },
-    title: 'GameEngine Studio',
+    title: 'Atlas Game Engine Studio',
   });
 
   mainWindow.loadFile(path.join(__dirname, '../../public/index.html'));
 
-  // Open DevTools in development mode
   if (process.argv.includes('--dev')) {
     mainWindow.webContents.openDevTools();
   }
@@ -43,7 +98,25 @@ app.on('activate', () => {
   }
 });
 
-// IPC Handlers for file operations
+ipcMain.handle('create-project', async (event, targetDirectory, projectName) => {
+  try {
+    const safeName = sanitizeProjectName(projectName);
+    const projectPath = path.join(targetDirectory, safeName);
+
+    await fs.promises.mkdir(path.join(projectPath, 'assets', 'models'), { recursive: true });
+    await fs.promises.mkdir(path.join(projectPath, 'assets', 'textures'), { recursive: true });
+    await fs.promises.mkdir(path.join(projectPath, 'assets', 'audio'), { recursive: true });
+    await fs.promises.mkdir(path.join(projectPath, 'scripts'), { recursive: true });
+
+    const manifest = createDefaultManifest(safeName);
+    await fs.promises.writeFile(path.join(projectPath, 'scene.manifest'), JSON.stringify(manifest, null, 2), 'utf8');
+
+    return { success: true, projectPath, manifest };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('save-project', async (event, projectPath, data) => {
   try {
     const manifestPath = path.join(projectPath, 'scene.manifest');
@@ -64,26 +137,28 @@ ipcMain.handle('load-project', async (event, projectPath) => {
   }
 });
 
-ipcMain.handle('open-dialog', async (event, options) => {
-  return dialog.showOpenDialog(mainWindow, options);
-});
-
-ipcMain.handle('save-dialog', async (event, options) => {
-  return dialog.showSaveDialog(mainWindow, options);
-});
+ipcMain.handle('open-dialog', async (event, options) => dialog.showOpenDialog(mainWindow, options));
+ipcMain.handle('save-dialog', async (event, options) => dialog.showSaveDialog(mainWindow, options));
 
 ipcMain.handle('import-asset', async (event, sourcePath, projectPath) => {
   try {
     const fileName = path.basename(sourcePath);
     const ext = path.extname(fileName).toLowerCase();
-    
+
     let targetDir;
-    if (['.obj', '.fbx', '.gltf'].includes(ext)) {
+    let category;
+    if (['.obj', '.fbx', '.gltf', '.glb'].includes(ext)) {
       targetDir = path.join(projectPath, 'assets', 'models');
-    } else if (['.png', '.jpg', '.jpeg', '.bmp'].includes(ext)) {
+      category = 'models';
+    } else if (['.png', '.jpg', '.jpeg', '.bmp', '.tga'].includes(ext)) {
       targetDir = path.join(projectPath, 'assets', 'textures');
+      category = 'textures';
     } else if (['.mp3', '.wav', '.ogg'].includes(ext)) {
       targetDir = path.join(projectPath, 'assets', 'audio');
+      category = 'audio';
+    } else if (['.lua'].includes(ext)) {
+      targetDir = path.join(projectPath, 'scripts');
+      category = 'scripts';
     } else {
       throw new Error('Unsupported file type');
     }
@@ -91,14 +166,13 @@ ipcMain.handle('import-asset', async (event, sourcePath, projectPath) => {
     await fs.promises.mkdir(targetDir, { recursive: true });
     const targetPath = path.join(targetDir, fileName);
     await fs.promises.copyFile(sourcePath, targetPath);
-    
-    return { success: true, path: path.relative(projectPath, targetPath) };
+
+    return { success: true, category, path: path.relative(projectPath, targetPath).replace(/\\/g, '/') };
   } catch (error) {
     return { success: false, error: error.message };
   }
 });
 
-// Git integration handlers
 ipcMain.handle('git-init', async (event, projectPath) => {
   try {
     const git = simpleGit(projectPath);
@@ -113,7 +187,7 @@ ipcMain.handle('git-commit', async (event, projectPath, message) => {
   try {
     const git = simpleGit(projectPath);
     await git.add('.');
-    await git.commit(message);
+    await git.commit(message || 'Update project');
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };

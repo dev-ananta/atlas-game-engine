@@ -1,9 +1,30 @@
 import React from 'react';
 
-function AssetBrowser({ assets, projectPath }) {
+function AssetBrowser({ assets, projectPath, onAssetImported }) {
   const handleImport = async () => {
-    // This would trigger a file dialog in a real implementation
-    console.log('Import asset clicked');
+    if (!projectPath) {
+      window.alert('Create or open a project first.');
+      return;
+    }
+
+    const result = await window.api.openDialog({
+      properties: ['openFile'],
+      filters: [
+        { name: 'Supported Assets', extensions: ['obj', 'fbx', 'gltf', 'glb', 'png', 'jpg', 'jpeg', 'bmp', 'tga', 'mp3', 'wav', 'ogg', 'lua'] },
+      ],
+    });
+
+    if (result.canceled || !result.filePaths?.length) {
+      return;
+    }
+
+    const importResult = await window.api.importAsset(result.filePaths[0], projectPath);
+    if (!importResult.success) {
+      window.alert(`Import failed: ${importResult.error}`);
+      return;
+    }
+
+    onAssetImported(importResult.category, importResult.path);
   };
 
   return (

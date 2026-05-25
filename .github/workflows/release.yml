@@ -22,8 +22,9 @@ jobs:
 
       - name: Build example package
         run: |
-          npm install --prefix build-tools
+          npm ci --prefix build-tools
           node build-tools/src/validate-manifest.js examples/hello-world/scene.manifest
+          node build-tools/src/bundle-assets.js examples/hello-world/assets examples/hello-world/build/assets.bundle
           node build-tools/src/compile-lua.js examples/hello-world/scripts examples/hello-world/build/scripts.bundle
           node build-tools/src/package-game.js examples/hello-world/scene.manifest examples/hello-world/build hello-world.game
 

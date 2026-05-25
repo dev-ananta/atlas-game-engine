@@ -20,7 +20,7 @@ npm install
 # Validate the manifest
 node src/validate-manifest.js ../examples/hello-world/scene.manifest
 
-# Bundle assets (none in this example)
+# Bundle assets
 node src/bundle-assets.js ../examples/hello-world/assets ../examples/hello-world/build/assets.bundle
 
 # Compile scripts
@@ -34,13 +34,13 @@ node src/package-game.js ../examples/hello-world/scene.manifest ../examples/hell
 
 ```bash
 # Linux
-./runtime/build/runtime-linux examples/hello-world/build/hello-world.game
+./runtime/build/bin/runtime-linux examples/hello-world/build/hello-world.game
 
 # Windows
 ./runtime/build/Release/runtime-windows.exe examples/hello-world/build/hello-world.game
 
 # macOS
-./runtime/build/runtime-macos examples/hello-world/build/hello-world.game
+./runtime/build/bin/runtime-macos examples/hello-world/build/hello-world.game
 ```
 
 ## What You'll See

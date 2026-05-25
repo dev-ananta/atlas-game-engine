@@ -1,5 +1,33 @@
 {
-  "version": "1.0.0",
+  "formatVersion": "1.1.0",
+  "metadata": {
+    "title": "Hello World",
+    "creator": "Atlas Contributors",
+    "releaseDate": "2026-01-25T00:00:00.000Z",
+    "genre": "Demo",
+    "description": "A simple hello world example with a rotating cube",
+    "coverArt": null,
+    "version": "0.1.0",
+    "assetQualityTiers": ["Ultra", "High", "Medium", "Low", "Potato"],
+    "recommendedHardware": {
+      "Ultra": { "minCpuCores": 12, "minMemoryGB": 16 },
+      "High": { "minCpuCores": 8, "minMemoryGB": 12 },
+      "Medium": { "minCpuCores": 6, "minMemoryGB": 8 },
+      "Low": { "minCpuCores": 4, "minMemoryGB": 4 },
+      "Potato": { "minCpuCores": 2, "minMemoryGB": 2 }
+    },
+    "distribution": "open"
+  },
+  "runtime": {
+    "entryScene": "scene.main"
+  },
+  "qualityProfiles": {
+    "Ultra": { "minCpuCores": 12, "minMemoryGB": 16 },
+    "High": { "minCpuCores": 8, "minMemoryGB": 12 },
+    "Medium": { "minCpuCores": 6, "minMemoryGB": 8 },
+    "Low": { "minCpuCores": 4, "minMemoryGB": 4 },
+    "Potato": { "minCpuCores": 2, "minMemoryGB": 2 }
+  },
   "scene": {
     "metadata": {
       "name": "Hello World",
@@ -39,38 +67,6 @@
           "mesh": "primitive:cube",
           "material": null,
           "scripts": ["scripts/rotate.lua"],
-          "physics": null
-        },
-        "children": []
-      },
-      {
-        "id": "camera",
-        "name": "MainCamera",
-        "transform": {
-          "position": [5, 5, 5],
-          "rotation": [-30, 45, 0],
-          "scale": [1, 1, 1]
-        },
-        "components": {
-          "mesh": null,
-          "material": null,
-          "scripts": [],
-          "physics": null
-        },
-        "children": []
-      },
-      {
-        "id": "light",
-        "name": "DirectionalLight",
-        "transform": {
-          "position": [0, 10, 0],
-          "rotation": [-45, 0, 0],
-          "scale": [1, 1, 1]
-        },
-        "components": {
-          "mesh": null,
-          "material": null,
-          "scripts": [],
           "physics": null
         },
         "children": []
