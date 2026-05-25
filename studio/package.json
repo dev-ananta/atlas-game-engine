@@ -1,7 +1,7 @@
 {
-  "name": "game-engine-studio",
+  "name": "atlas-game-engine-studio",
   "version": "1.0.0",
-  "description": "Local-first game engine studio",
+  "description": "Atlas Game Engine Studio",
   "main": "src/main/index.js",
   "author": "Game Engine Contributors",
   "license": "MIT",
@@ -38,8 +38,8 @@
     "style-loader": "^3.3.4"
   },
   "build": {
-    "appId": "com.gameengine.studio",
-    "productName": "GameEngine Studio",
+    "appId": "com.atlasgameengine.studio",
+    "productName": "Atlas Game Engine Studio",
     "directories": {
       "output": "dist"
     },

@@ -1,117 +1,65 @@
-# Game Engine - Local-First Development Suite
+# Atlas Game Engine
 
-A complete offline game development platform with integrated version control, automated build pipeline, and cross-platform runtime.
+Atlas Game Engine is a local-first, cross-platform game engine prototype focused on simple workflows for indie developers.
 
-## 🎯 Overview
+## Current MLP Scope
 
-This project provides a **local-first** alternative to cloud-based game engines like Roblox, featuring:
+This repository now provides an auditable **MLP foundation** for:
 
-- **Studio Environment**: 3D workspace with Lua scripting
-- **Automated Pipeline**: GitHub Actions build system
-- **Cross-Platform**: Windows, Linux, and macOS support
-- **Git Integration**: Built-in version control
-- **Standalone Runtime**: Play games offline
+- Project creation in Studio (Electron + React)
+- Scene manifest authoring and editing
+- Asset import into project folders (models, textures, audio, scripts)
+- Build pipeline to produce `.game` packages
+- Atlas Runtime package loading with hardware-aware quality tier selection
+- Release/CI workflows to validate studio/runtime/package pipelines
 
-## 🚀 Quick Start
+## Repository Layout
 
-### For Game Developers
+- `studio/` — Atlas Studio desktop editor
+- `runtime/` — Atlas Player runtime loader (C++)
+- `build-tools/` — packaging and validation scripts for `.game`
+- `examples/hello-world/` — reference project and packaging smoke target
+- `.github/workflows/` — CI/CD workflows
+- `docs/` — user and pipeline documentation
 
-1. **Download the Studio** from [Releases](https://github.com/yourusername/game-engine/releases)
-   - Windows: `studio-windows.exe`
-   - macOS: `studio-macos.dmg`
-   - Linux: `studio-linux.AppImage`
+## Quick Start
 
-2. **Create a new project** in the Studio
-3. **Build your game** using the 3D editor and Lua scripts
-4. **Save & commit** to GitHub
-5. **Download the compiled `.game` file** from GitHub Actions
-
-### For Players
-
-1. **Download the Runtime** from [Releases](https://github.com/yourusername/game-engine/releases)
-2. **Open a `.game` file** to play
-
-## 📦 Repository Structure
-
-```
-game-engine/
-├── studio/          # Studio application (Electron)
-├── runtime/         # Runtime client (C++)
-├── build-tools/     # Build pipeline scripts
-├── docs/            # Documentation
-├── examples/        # Example projects
-└── tests/           # Test suites
-```
-
-## 🛠️ Building from Source
-
-### Prerequisites
-
-- **Node.js 18+** (for Studio)
-- **CMake 3.20+** (for Runtime)
-- **C++ Compiler** (MSVC/GCC/Clang)
-
-### Build Studio
+### 1) Build tools + package example
 
 ```bash
-cd studio
-npm install
-npm run build        # Current platform
-npm run build:linux  # Linux AppImage
-npm run build:win    # Windows installer
-npm run build:mac    # macOS DMG
+cd build-tools
+npm ci
+node src/validate-manifest.js ../examples/hello-world/scene.manifest
+node src/bundle-assets.js ../examples/hello-world/assets ../examples/hello-world/build/assets.bundle
+node src/compile-lua.js ../examples/hello-world/scripts ../examples/hello-world/build/scripts.bundle
+node src/package-game.js ../examples/hello-world/scene.manifest ../examples/hello-world/build hello-world.game
 ```
 
-### Build Runtime
+### 2) Build runtime
 
 ```bash
 cd runtime
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --config Release
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
 ```
 
-## 📖 Documentation
+### 3) Run runtime
 
-- [Studio User Guide](docs/studio-guide.md)
-- [Lua API Reference](docs/lua-api-reference.md)
-- [Build Pipeline Guide](docs/build-pipeline.md)
-- [Runtime Guide](docs/runtime-guide.md)
-- [File Formats](docs/file-formats.md)
+```bash
+./runtime/build/bin/runtime-linux examples/hello-world/build/hello-world.game
+```
 
-## 🎮 Example Projects
+## Documentation Index
 
-Check out the `examples/` directory:
-- `hello-world/` - Basic scene setup
-- `platformer-demo/` - Complete platformer game
+- `ARCHITECTURE.md` — system architecture and responsibilities
+- `FILE_FORMAT.md` — `.game` container, manifest and encryption model
+- `ROADMAP.md` — priorities to move from MLP foundation to production
+- `CONTRIBUTING.md` — contribution and validation workflow
+- `docs/studio-guide.md` — editor usage
+- `docs/build-pipeline.md` — CI/CD and packaging flow
 
-## 🤝 Contributing
+## Current Limitations
 
-Contributions are welcome! Please read our contributing guidelines and submit pull requests.
+This is still an early MLP foundation. Not all runtime simulation/rendering systems described in legacy docs are implemented yet.
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🔗 Links
-
-- [Documentation](docs/)
-- [Issue Tracker](https://github.com/yourusername/game-engine/issues)
-- [Discussions](https://github.com/yourusername/game-engine/discussions)
-
-## ⭐ Features
-
-- ✅ Full offline development workflow
-- ✅ Git-based version control
-- ✅ Automated CI/CD pipeline
-- ✅ Cross-platform support
-- ✅ Lua scripting engine
-- ✅ Physics simulation
-- ✅ 3D rendering
-- ✅ Asset management
-- ✅ Scene serialization
-- ✅ Component system
-
----
-
-**Made with ❤️ for game developers who value local-first workflows**
+Key known gaps are tracked in `ROADMAP.md`.

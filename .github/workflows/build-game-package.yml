@@ -28,10 +28,13 @@ jobs:
 
       - name: Install build tools
         working-directory: build-tools
-        run: npm install
+        run: npm ci
 
       - name: Validate hello-world manifest
         run: node build-tools/src/validate-manifest.js examples/hello-world/scene.manifest
+
+      - name: Bundle assets
+        run: node build-tools/src/bundle-assets.js examples/hello-world/assets examples/hello-world/build/assets.bundle
 
       - name: Compile scripts
         run: node build-tools/src/compile-lua.js examples/hello-world/scripts examples/hello-world/build/scripts.bundle

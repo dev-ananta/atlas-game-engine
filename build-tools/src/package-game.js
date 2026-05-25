@@ -1,91 +1,187 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { validateManifest } = require('./validate-manifest');
+const { createEmptyBundle } = require('./bundle-assets');
 
-function packageGame(manifestPath, buildDir, outputName) {
-    console.log('Packaging game...');
-    console.log('  Manifest:', manifestPath);
-    console.log('  Build dir:', buildDir);
-    
-    // Read manifest
-    let manifest;
-    try {
-        manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    } catch (error) {
-        console.error('Error reading manifest:', error.message);
-        return false;
+function parseArgs(argv) {
+  const positional = [];
+  const options = {
+    distribution: 'open',
+    symmetricKey: '',
+    publicKeyPath: '',
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--distribution') {
+      options.distribution = argv[++i] || options.distribution;
+    } else if (arg === '--symmetric-key') {
+      options.symmetricKey = argv[++i] || '';
+    } else if (arg === '--public-key') {
+      options.publicKeyPath = argv[++i] || '';
+    } else {
+      positional.push(arg);
     }
-    
-    // Read asset bundle
-    let assetBundle = { assets: {}, hashes: {} };
-    const assetBundlePath = path.join(buildDir, 'assets.bundle');
-    if (fs.existsSync(assetBundlePath)) {
-        assetBundle = JSON.parse(fs.readFileSync(assetBundlePath, 'utf8'));
-        console.log(`  Loaded ${Object.keys(assetBundle.assets).length} assets`);
-    }
-    
-    // Read script bundle
-    let scriptBundle = { scripts: {} };
-    const scriptBundlePath = path.join(buildDir, 'scripts.bundle');
-    if (fs.existsSync(scriptBundlePath)) {
-        scriptBundle = JSON.parse(fs.readFileSync(scriptBundlePath, 'utf8'));
-        console.log(`  Loaded ${Object.keys(scriptBundle.scripts).length} scripts`);
-    }
-    
-    // Create game package
-    const gamePackage = {
-        header: {
-            magic: 'GAME',
-            version: '1.0.0',
-            created: new Date().toISOString()
-        },
-        manifest: manifest,
-        assets: assetBundle.assets,
-        assetHashes: assetBundle.hashes,
-        scripts: scriptBundle.scripts
+  }
+
+  return { positional, options };
+}
+
+function encodePayload(distribution, payloadJson, options) {
+  if (distribution === 'open' && options.symmetricKey) {
+    const salt = crypto.randomBytes(16);
+    const key = crypto.scryptSync(options.symmetricKey, salt, 32);
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+    const encrypted = Buffer.concat([cipher.update(payloadJson, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+
+    return {
+      mode: 'symmetric-aes-256-gcm',
+      payload: {
+        encoding: 'base64',
+        data: encrypted.toString('base64'),
+        iv: iv.toString('base64'),
+        tag: tag.toString('base64'),
+        salt: salt.toString('base64'),
+      },
+      notes: ['Open/public distribution with collaborative symmetric protection.'],
     };
-    
-    // Calculate checksum
-    const packageJson = JSON.stringify(gamePackage);
-    const checksum = crypto.createHash('sha256').update(packageJson).digest('hex');
-    gamePackage.header.checksum = checksum;
-    
-    // Write game file
-    const outputPath = path.join(buildDir, outputName);
-    fs.writeFileSync(outputPath, JSON.stringify(gamePackage, null, 2));
-    
-    const fileSize = fs.statSync(outputPath).size;
-    const fileSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
-    
-    console.log(`✓ Game package created: ${outputPath}`);
-    console.log(`  Size: ${fileSizeMB} MB`);
-    console.log(`  Checksum: ${checksum.substring(0, 16)}...`);
-    
-    return true;
+  }
+
+  if (distribution === 'closed') {
+    if (!options.publicKeyPath || !fs.existsSync(options.publicKeyPath)) {
+      throw new Error('Closed distribution requires --public-key <path-to-rsa-public-key.pem>');
+    }
+
+    const publicKey = fs.readFileSync(options.publicKeyPath, 'utf8');
+    const dataKey = crypto.randomBytes(32);
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', dataKey, iv);
+    const encrypted = Buffer.concat([cipher.update(payloadJson, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+
+    const encryptedDataKey = crypto.publicEncrypt(
+      {
+        key: publicKey,
+        oaepHash: 'sha256',
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+      },
+      dataKey,
+    );
+
+    return {
+      mode: 'hybrid-rsa-oaep-aes-256-gcm',
+      payload: {
+        encoding: 'base64',
+        data: encrypted.toString('base64'),
+        iv: iv.toString('base64'),
+        tag: tag.toString('base64'),
+        encryptedDataKey: encryptedDataKey.toString('base64'),
+      },
+      notes: ['Closed distribution: runtime can execute package; repacking requires private key holder.'],
+    };
+  }
+
+  return {
+    mode: 'none',
+    payload: {
+      encoding: 'base64',
+      data: Buffer.from(payloadJson, 'utf8').toString('base64'),
+    },
+    notes: ['No encryption applied.'],
+  };
 }
 
-// CLI usage
+function packageGame(manifestPath, buildDir, outputName, options = {}) {
+  console.log('Packaging game...');
+  console.log('  Manifest:', manifestPath);
+  console.log('  Build dir:', buildDir);
+
+  const validation = validateManifest(manifestPath);
+  if (!validation.valid) {
+    console.error('Manifest validation failed.');
+    return false;
+  }
+
+  const normalizedManifest = validation.normalizedManifest;
+
+  const assetBundlePath = path.join(buildDir, 'assets.bundle');
+  const scriptBundlePath = path.join(buildDir, 'scripts.bundle');
+
+  const assetBundle = fs.existsSync(assetBundlePath)
+    ? JSON.parse(fs.readFileSync(assetBundlePath, 'utf8'))
+    : createEmptyBundle();
+  const scriptBundle = fs.existsSync(scriptBundlePath)
+    ? JSON.parse(fs.readFileSync(scriptBundlePath, 'utf8'))
+    : { version: '1.0.0', scripts: {} };
+
+  const payload = {
+    manifest: normalizedManifest,
+    assets: assetBundle,
+    scripts: scriptBundle,
+  };
+
+  const distribution = (options.distribution || normalizedManifest.metadata.distribution || 'open').toLowerCase();
+  const payloadJson = JSON.stringify(payload);
+  const encoded = encodePayload(distribution, payloadJson, options);
+
+  const gamePackage = {
+    header: {
+      magic: 'ATLAS_GAME',
+      version: '1.1.0',
+      created: new Date().toISOString(),
+      distribution,
+      encryption: {
+        mode: encoded.mode,
+      },
+    },
+    metadata: normalizedManifest.metadata,
+    runtime: normalizedManifest.runtime,
+    qualityProfiles: normalizedManifest.qualityProfiles,
+    payload: encoded.payload,
+    notes: encoded.notes,
+  };
+
+  const checksumInput = JSON.stringify(gamePackage);
+  gamePackage.header.checksum = crypto.createHash('sha256').update(checksumInput).digest('hex');
+
+  const outputPath = path.join(buildDir, outputName);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, JSON.stringify(gamePackage, null, 2));
+
+  const fileSize = fs.statSync(outputPath).size;
+  const fileSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
+
+  console.log(`✓ Game package created: ${outputPath}`);
+  console.log(`  Size: ${fileSizeMB} MB`);
+  console.log(`  Checksum: ${gamePackage.header.checksum.substring(0, 16)}...`);
+  console.log(`  Encryption: ${encoded.mode}`);
+
+  return true;
+}
+
 if (require.main === module) {
-    const manifestPath = process.argv[2];
-    const buildDir = process.argv[3];
-    const outputName = process.argv[4] || 'game.game';
-    
-    if (!manifestPath || !buildDir) {
-        console.error('Usage: node package-game.js <manifest-path> <build-dir> [output-name]');
-        process.exit(1);
-    }
-    
-    if (!fs.existsSync(manifestPath)) {
-        console.error('Manifest not found:', manifestPath);
-        process.exit(1);
-    }
-    
-    if (!fs.existsSync(buildDir)) {
-        fs.mkdirSync(buildDir, { recursive: true });
-    }
-    
-    const success = packageGame(manifestPath, buildDir, outputName);
-    process.exit(success ? 0 : 1);
+  const { positional, options } = parseArgs(process.argv.slice(2));
+  const manifestPath = positional[0];
+  const buildDir = positional[1];
+  const outputName = positional[2] || 'game.game';
+
+  if (!manifestPath || !buildDir) {
+    console.error('Usage: node package-game.js <manifest-path> <build-dir> [output-name] [--distribution open|closed] [--symmetric-key <key>] [--public-key <pem>]');
+    process.exit(1);
+  }
+
+  if (!fs.existsSync(manifestPath)) {
+    console.error('Manifest not found:', manifestPath);
+    process.exit(1);
+  }
+
+  fs.mkdirSync(buildDir, { recursive: true });
+
+  const success = packageGame(manifestPath, buildDir, outputName, options);
+  process.exit(success ? 0 : 1);
 }
 
-module.exports = { packageGame };
+module.exports = { packageGame, parseArgs, encodePayload };

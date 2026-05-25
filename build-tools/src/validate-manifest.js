@@ -1,126 +1,160 @@
 const fs = require('fs');
 const path = require('path');
 
+const QUALITY_TIERS = ['Ultra', 'High', 'Medium', 'Low', 'Potato'];
+
+function isVec3(value) {
+  return Array.isArray(value) && value.length === 3 && value.every((n) => Number.isFinite(n));
+}
+
+function defaultQualityProfiles() {
+  return {
+    Ultra: { minCpuCores: 12, minMemoryGB: 16 },
+    High: { minCpuCores: 8, minMemoryGB: 12 },
+    Medium: { minCpuCores: 6, minMemoryGB: 8 },
+    Low: { minCpuCores: 4, minMemoryGB: 4 },
+    Potato: { minCpuCores: 2, minMemoryGB: 2 },
+  };
+}
+
+function normalizeManifest(manifest) {
+  if (manifest.metadata && manifest.qualityProfiles) {
+    return {
+      formatVersion: manifest.formatVersion || '1.1.0',
+      metadata: manifest.metadata,
+      runtime: manifest.runtime || { entryScene: 'scene.main' },
+      qualityProfiles: manifest.qualityProfiles,
+      scene: manifest.scene || { entities: [], assetRegistry: { models: [], textures: [], scripts: [], audio: [] } },
+    };
+  }
+
+  const scene = manifest.scene || {};
+  const metadata = scene.metadata || {};
+  return {
+    formatVersion: '1.1.0',
+    metadata: {
+      title: metadata.name || 'Untitled Game',
+      creator: 'Unknown Creator',
+      releaseDate: new Date().toISOString(),
+      genre: 'Unknown',
+      description: metadata.description || '',
+      coverArt: null,
+      version: manifest.version || '1.0.0',
+      assetQualityTiers: QUALITY_TIERS,
+      recommendedHardware: defaultQualityProfiles(),
+      distribution: 'open',
+    },
+    runtime: {
+      entryScene: 'scene.main',
+    },
+    qualityProfiles: defaultQualityProfiles(),
+    scene: {
+      metadata: {
+        name: metadata.name || 'Main Scene',
+        created: metadata.created || new Date().toISOString(),
+        modified: metadata.modified || new Date().toISOString(),
+        description: metadata.description || '',
+      },
+      entities: Array.isArray(scene.entities) ? scene.entities : [],
+      assetRegistry: scene.assetRegistry || { models: [], textures: [], scripts: [], audio: [] },
+    },
+  };
+}
+
 function validateManifest(manifestPath) {
-    console.log('Validating manifest:', manifestPath);
-    
-    // Read manifest file
-    let manifest;
-    try {
-        const content = fs.readFileSync(manifestPath, 'utf8');
-        manifest = JSON.parse(content);
-    } catch (error) {
-        console.error('Error reading manifest:', error.message);
-        return false;
+  console.log('Validating manifest:', manifestPath);
+
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  } catch (error) {
+    console.error('Error reading manifest:', error.message);
+    return { valid: false, errors: ['Failed to parse manifest JSON'], warnings: [] };
+  }
+
+  const normalized = normalizeManifest(manifest);
+  const errors = [];
+  const warnings = [];
+
+  if (!normalized.metadata?.title) {
+    errors.push('Missing metadata.title');
+  }
+
+  if (!Array.isArray(normalized.scene?.entities)) {
+    errors.push('scene.entities must be an array');
+  }
+
+  const entityIds = new Set();
+  for (const [index, entity] of normalized.scene.entities.entries()) {
+    if (!entity?.id) {
+      errors.push(`Entity ${index} missing id`);
+      continue;
     }
-    
-    // Validate structure
-    if (!manifest.version) {
-        console.error('Missing version field');
-        return false;
+
+    if (entityIds.has(entity.id)) {
+      errors.push(`Duplicate entity id: ${entity.id}`);
     }
-    
-    if (!manifest.scene) {
-        console.error('Missing scene field');
-        return false;
+    entityIds.add(entity.id);
+
+    if (!entity.name) {
+      errors.push(`Entity ${entity.id} missing name`);
     }
-    
-    if (!manifest.scene.entities || !Array.isArray(manifest.scene.entities)) {
-        console.error('Invalid or missing entities array');
-        return false;
+
+    if (!entity.transform || !isVec3(entity.transform.position) || !isVec3(entity.transform.rotation) || !isVec3(entity.transform.scale)) {
+      errors.push(`Entity ${entity.id} has invalid transform (position/rotation/scale must be vec3 arrays)`);
     }
-    
-    // Validate entities
-    for (let i = 0; i < manifest.scene.entities.length; i++) {
-        const entity = manifest.scene.entities[i];
-        
-        if (!entity.id) {
-            console.error(`Entity ${i} missing id`);
-            return false;
-        }
-        
-        if (!entity.name) {
-            console.error(`Entity ${entity.id} missing name`);
-            return false;
-        }
-        
-        if (!entity.transform) {
-            console.error(`Entity ${entity.id} missing transform`);
-            return false;
-        }
-        
-        // Validate transform
-        if (!entity.transform.position || entity.transform.position.length !== 3) {
-            console.error(`Entity ${entity.id} has invalid position`);
-            return false;
-        }
-        
-        if (!entity.transform.rotation || entity.transform.rotation.length !== 3) {
-            console.error(`Entity ${entity.id} has invalid rotation`);
-            return false;
-        }
-        
-        if (!entity.transform.scale || entity.transform.scale.length !== 3) {
-            console.error(`Entity ${entity.id} has invalid scale`);
-            return false;
-        }
+  }
+
+  const qualityProfiles = normalized.qualityProfiles || {};
+  for (const tier of QUALITY_TIERS) {
+    if (!qualityProfiles[tier]) {
+      warnings.push(`qualityProfiles missing ${tier}; default profile is recommended`);
     }
-    
-    // Validate asset registry
-    if (manifest.scene.assetRegistry) {
-        const registry = manifest.scene.assetRegistry;
-        
-        // Check that referenced assets exist
-        const projectDir = path.dirname(manifestPath);
-        
-        if (registry.models) {
-            for (const model of registry.models) {
-                const modelPath = path.join(projectDir, model);
-                if (!fs.existsSync(modelPath)) {
-                    console.warn(`Referenced model not found: ${model}`);
-                }
-            }
-        }
-        
-        if (registry.textures) {
-            for (const texture of registry.textures) {
-                const texturePath = path.join(projectDir, texture);
-                if (!fs.existsSync(texturePath)) {
-                    console.warn(`Referenced texture not found: ${texture}`);
-                }
-            }
-        }
-        
-        if (registry.scripts) {
-            for (const script of registry.scripts) {
-                const scriptPath = path.join(projectDir, script);
-                if (!fs.existsSync(scriptPath)) {
-                    console.warn(`Referenced script not found: ${script}`);
-                }
-            }
-        }
+  }
+
+  const projectDir = path.dirname(manifestPath);
+  const registry = normalized.scene.assetRegistry || {};
+  for (const key of ['models', 'textures', 'scripts', 'audio']) {
+    const arr = Array.isArray(registry[key]) ? registry[key] : [];
+    for (const entry of arr) {
+      const relPath = typeof entry === 'string' ? entry : entry?.path;
+      if (!relPath) {
+        warnings.push(`assetRegistry.${key} contains an invalid entry`);
+        continue;
+      }
+      const fullPath = path.join(projectDir, relPath);
+      if (!fs.existsSync(fullPath)) {
+        warnings.push(`Referenced asset not found: ${relPath}`);
+      }
     }
-    
-    console.log('✓ Manifest validation successful');
-    return true;
+  }
+
+  if (errors.length > 0) {
+    errors.forEach((e) => console.error(`✗ ${e}`));
+    warnings.forEach((w) => console.warn(`⚠ ${w}`));
+    return { valid: false, errors, warnings, normalizedManifest: normalized };
+  }
+
+  warnings.forEach((w) => console.warn(`⚠ ${w}`));
+  console.log('✓ Manifest validation successful');
+  return { valid: true, errors, warnings, normalizedManifest: normalized };
 }
 
-// CLI usage
 if (require.main === module) {
-    const manifestPath = process.argv[2];
-    
-    if (!manifestPath) {
-        console.error('Usage: node validate-manifest.js <path-to-manifest>');
-        process.exit(1);
-    }
-    
-    if (!fs.existsSync(manifestPath)) {
-        console.error('Manifest file not found:', manifestPath);
-        process.exit(1);
-    }
-    
-    const isValid = validateManifest(manifestPath);
-    process.exit(isValid ? 0 : 1);
+  const manifestPath = process.argv[2];
+
+  if (!manifestPath) {
+    console.error('Usage: node validate-manifest.js <path-to-manifest>');
+    process.exit(1);
+  }
+
+  if (!fs.existsSync(manifestPath)) {
+    console.error('Manifest file not found:', manifestPath);
+    process.exit(1);
+  }
+
+  const result = validateManifest(manifestPath);
+  process.exit(result.valid ? 0 : 1);
 }
 
-module.exports = { validateManifest };
+module.exports = { validateManifest, normalizeManifest, QUALITY_TIERS, defaultQualityProfiles };

@@ -6,22 +6,51 @@ import AssetBrowser from './components/AssetBrowser';
 import LuaEditor from './components/LuaEditor';
 import './styles/main.css';
 
-function App() {
-  const [projectPath, setProjectPath] = useState(null);
-  const [sceneData, setSceneData] = useState({
+function createEmptyScene() {
+  const now = new Date().toISOString();
+  return {
+    metadata: {
+      name: 'Main Scene',
+      created: now,
+      modified: now,
+      description: '',
+    },
     entities: [],
     assetRegistry: {
       models: [],
       textures: [],
       scripts: [],
-      audio: []
-    }
+      audio: [],
+    },
+  };
+}
+
+function App() {
+  const [projectPath, setProjectPath] = useState(null);
+  const [projectManifest, setProjectManifest] = useState({
+    formatVersion: '1.1.0',
+    metadata: {
+      title: 'Untitled Atlas Game',
+      creator: 'Unknown Creator',
+      releaseDate: new Date().toISOString(),
+      genre: 'Unknown',
+      description: '',
+      coverArt: null,
+      version: '0.1.0',
+      assetQualityTiers: ['Ultra', 'High', 'Medium', 'Low', 'Potato'],
+      recommendedHardware: {},
+      distribution: 'open',
+    },
+    runtime: {
+      entryScene: 'scene.main',
+    },
+    qualityProfiles: {},
+    scene: createEmptyScene(),
   });
   const [selectedEntity, setSelectedEntity] = useState(null);
-  const [activePanel, setActivePanel] = useState('properties'); // 'properties' or 'editor'
+  const [activePanel, setActivePanel] = useState('properties');
 
   useEffect(() => {
-    // Auto-save every 5 minutes
     const interval = setInterval(() => {
       if (projectPath) {
         handleSave();
@@ -29,107 +58,171 @@ function App() {
     }, 300000);
 
     return () => clearInterval(interval);
-  }, [projectPath, sceneData]);
+  }, [projectPath, projectManifest]);
+
+  const setScene = (scene) => {
+    setProjectManifest((prev) => ({
+      ...prev,
+      scene,
+    }));
+  };
 
   const handleSave = async () => {
     if (!projectPath) return;
-    
-    const manifest = {
-      version: "1.0.0",
+
+    const manifestToSave = {
+      ...projectManifest,
       scene: {
+        ...projectManifest.scene,
         metadata: {
-          name: "MyGame",
-          created: new Date().toISOString(),
-          modified: new Date().toISOString()
+          ...projectManifest.scene.metadata,
+          modified: new Date().toISOString(),
         },
-        ...sceneData
-      }
+      },
     };
 
-    const result = await window.api.saveProject(projectPath, manifest);
+    const result = await window.api.saveProject(projectPath, manifestToSave);
     if (result.success) {
+      setProjectManifest(manifestToSave);
       console.log('Project saved successfully');
     } else {
       console.error('Save failed:', result.error);
     }
   };
 
-  const handleLoad = async (path) => {
-    const result = await window.api.loadProject(path);
-    if (result.success) {
-      setSceneData(result.data.scene);
-      setProjectPath(path);
-    } else {
-      console.error('Load failed:', result.error);
+  const handleOpenProject = async () => {
+    const result = await window.api.openDialog({
+      properties: ['openDirectory'],
+    });
+
+    if (result.canceled || !result.filePaths?.length) {
+      return;
     }
+
+    const selectedPath = result.filePaths[0];
+    const loadResult = await window.api.loadProject(selectedPath);
+    if (!loadResult.success) {
+      window.alert(`Load failed: ${loadResult.error}`);
+      return;
+    }
+
+    setProjectPath(selectedPath);
+    setProjectManifest(loadResult.data);
+    setSelectedEntity(null);
+  };
+
+  const handleNewProject = async () => {
+    const result = await window.api.openDialog({
+      properties: ['openDirectory', 'createDirectory'],
+    });
+
+    if (result.canceled || !result.filePaths?.length) {
+      return;
+    }
+
+    const name = window.prompt('Project name', 'MyAtlasGame');
+    if (!name) {
+      return;
+    }
+
+    const createResult = await window.api.createProject(result.filePaths[0], name);
+    if (!createResult.success) {
+      window.alert(`Create project failed: ${createResult.error}`);
+      return;
+    }
+
+    setProjectPath(createResult.projectPath);
+    setProjectManifest(createResult.manifest);
+    setSelectedEntity(null);
   };
 
   const handleAddEntity = (entity) => {
-    setSceneData(prev => ({
-      ...prev,
-      entities: [...prev.entities, entity]
-    }));
+    setScene({
+      ...projectManifest.scene,
+      entities: [...projectManifest.scene.entities, entity],
+    });
   };
 
   const handleUpdateEntity = (id, updates) => {
-    setSceneData(prev => ({
-      ...prev,
-      entities: prev.entities.map(e => 
-        e.id === id ? { ...e, ...updates } : e
-      )
-    }));
+    setScene({
+      ...projectManifest.scene,
+      entities: projectManifest.scene.entities.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+    });
   };
 
   const handleDeleteEntity = (id) => {
-    setSceneData(prev => ({
-      ...prev,
-      entities: prev.entities.filter(e => e.id !== id)
-    }));
+    setScene({
+      ...projectManifest.scene,
+      entities: projectManifest.scene.entities.filter((e) => e.id !== id),
+    });
+
     if (selectedEntity?.id === id) {
       setSelectedEntity(null);
     }
   };
 
+  const handleAssetImported = (category, assetPath) => {
+    const registry = projectManifest.scene.assetRegistry || { models: [], textures: [], scripts: [], audio: [] };
+    const existing = registry[category] || [];
+    if (existing.includes(assetPath)) {
+      return;
+    }
+
+    setScene({
+      ...projectManifest.scene,
+      assetRegistry: {
+        ...registry,
+        [category]: [...existing, assetPath],
+      },
+    });
+  };
+
+  const scene = projectManifest.scene || createEmptyScene();
+
   return (
     <div className="app-container">
       <div className="toolbar">
-        <button onClick={handleSave}>Save</button>
+        <button onClick={handleNewProject}>New Project</button>
+        <button onClick={handleOpenProject}>Open Project</button>
+        <button onClick={handleSave} disabled={!projectPath}>Save</button>
         <button onClick={() => setActivePanel('properties')}>Properties</button>
         <button onClick={() => setActivePanel('editor')}>Script Editor</button>
+        <span className="toolbar-project">{projectPath ? projectPath : 'No project open'}</span>
       </div>
-      
+
       <div className="main-layout">
         <div className="left-panel">
-          <SceneHierarchy 
-            entities={sceneData.entities}
+          <SceneHierarchy
+            entities={scene.entities}
             selectedEntity={selectedEntity}
             onSelectEntity={setSelectedEntity}
             onDeleteEntity={handleDeleteEntity}
           />
-          <AssetBrowser 
-            assets={sceneData.assetRegistry}
+          <AssetBrowser
+            assets={scene.assetRegistry}
             projectPath={projectPath}
+            onAssetImported={handleAssetImported}
           />
         </div>
-        
+
         <div className="center-viewport">
-          <Viewport3D 
-            entities={sceneData.entities}
+          <Viewport3D
+            entities={scene.entities}
             selectedEntity={selectedEntity}
             onSelectEntity={setSelectedEntity}
             onAddEntity={handleAddEntity}
             onUpdateEntity={handleUpdateEntity}
           />
         </div>
-        
+
         <div className="right-panel">
           {activePanel === 'properties' ? (
-            <PropertiesPanel 
+            <PropertiesPanel
               entity={selectedEntity}
               onUpdate={handleUpdateEntity}
             />
           ) : (
-            <LuaEditor 
+            <LuaEditor
               entity={selectedEntity}
               onUpdate={handleUpdateEntity}
             />
