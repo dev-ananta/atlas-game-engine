@@ -11,6 +11,9 @@ on:
       - ".github/workflows/build-studio.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: ${{ matrix.os }}
@@ -20,15 +23,15 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            package_script: build:linux
+            electron_target: linux
             artifact_name: studio-linux
             artifact_glob: "*.AppImage"
           - os: windows-latest
-            package_script: build:win
+            electron_target: win
             artifact_name: studio-windows
             artifact_glob: "*.exe"
           - os: macos-latest
-            package_script: build:mac
+            electron_target: mac
             artifact_name: studio-macos
             artifact_glob: "*.dmg"
 
@@ -51,7 +54,7 @@ jobs:
 
       - name: Package app
         working-directory: studio
-        run: npm run ${{ matrix.package_script }} -- --publish never
+        run: npx electron-builder --${{ matrix.electron_target }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
