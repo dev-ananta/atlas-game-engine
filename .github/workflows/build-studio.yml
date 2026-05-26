@@ -13,7 +13,24 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            package_script: build:linux
+            artifact_name: studio-linux
+            artifact_glob: "*.AppImage"
+          - os: windows-latest
+            package_script: build:win
+            artifact_name: studio-windows
+            artifact_glob: "*.exe"
+          - os: macos-latest
+            package_script: build:mac
+            artifact_name: studio-macos
+            artifact_glob: "*.dmg"
 
     steps:
       - uses: actions/checkout@v4
@@ -32,13 +49,14 @@ jobs:
         working-directory: studio
         run: npm run build:renderer
 
-      - name: Package Linux app
+      - name: Package app
         working-directory: studio
-        run: npm run build:linux
+        run: npm run ${{ matrix.package_script }} -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - uses: actions/upload-artifact@v4
         with:
-          name: studio-linux
-          path: studio/dist/**
+          name: ${{ matrix.artifact_name }}
+          path: studio/dist/${{ matrix.artifact_glob }}
+          if-no-files-found: error

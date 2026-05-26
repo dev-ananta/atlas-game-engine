@@ -5,6 +5,10 @@
   "main": "src/main/index.js",
   "author": "Game Engine Contributors",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dev-ananta/atlas-game-engine.git"
+  },
   "scripts": {
     "start": "npm run build:renderer && electron .",
     "dev": "npm run build:renderer && electron . --dev",
